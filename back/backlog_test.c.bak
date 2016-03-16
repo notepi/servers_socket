@@ -1,0 +1,76 @@
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+
+static int stop = 0;
+static void handle_term(int sig)
+{
+	stop = 1;
+}
+
+int main(int argc, char *argv[])
+{
+	signal(SIGTERM, handle_term);						// 信号捕捉
+	
+	if (argc < 3)
+	{
+		printf("usge:%s ip_address port_number backlog\n",
+				basename(argv[0]));
+		return -1;
+	}
+	const char *ip = argv[1];				
+	int port = atoi(argv[2]);							// 将端口的ascii转成int
+	int backlog = atoi(argv[3]);						// 将监听链接数量的ascii转成int
+	
+	int sock = socket (AF_INET, SOCK_STREAM, 0);		// 创建TCP的socket
+	// 如果其值为假（即为0），那么它先向stderr打印一条出错信息，然后通过调用 abort 来终止程序运行。
+	assert( sock >= 0);
+	
+	/*创建一个IPv4 socket地址*/
+	struct sockaddr_in address;
+	bzero(&address, sizeof(address));					// 结构体清零
+	address.sin_family = AF_INET;						// TCP/IPv4协议族
+	inet_pton(AF_INET, ip, &address.sin_addr);			// 将ip转成网络字节序存入sin_addr
+	address.sin_port = htons(port);						// 将端口转成网络字节存入sin_port
+	
+	int ret = bind (sock, (struct sockaddr*)&address, 	// 绑定socket
+					sizeof(address));
+	assert (ret != -1);									// 绑定失败则退出
+	
+	ret = listen(sock, backlog);						// 最多监听backlog个连接
+	assert (ret != -1);									// 监听失败则退出
+	
+	/*循环等待连接，直到有SIGTERM信号将它中断*/
+	while(!stop)
+	{
+		sleep(1);
+	}
+	
+	/*关闭socket*/
+	close(sock);
+	return 0;
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+}
