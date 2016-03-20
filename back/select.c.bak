@@ -1,9 +1,11 @@
+
+
 /***********************************
 *
 *readme
 *用于读取信息
 *需要输入ip，端口，listen的连接数
-*功能：输出连接的发来的数据
+*功能：测试select
 *
 ***********************************/
 #include <sys/socket.h>
@@ -17,12 +19,10 @@
 #include <string.h>
 #include <errno.h>
 
-#define BUF_SIZE 1024
-
 int main(int argc, char *argv[])
 {
 	
-	if (argc < 5)
+	if (argc < 4)
 	{
 		printf("usge:%s ip_address port_number backlog\n",
 				basename(argv[0]));
@@ -43,20 +43,6 @@ int main(int argc, char *argv[])
 	address.sin_family = AF_INET;						// TCP/IPv4协议族
 	inet_pton(AF_INET, ip, &address.sin_addr);			// 将ip转成网络字节序存入sin_addr
 	address.sin_port = htons(port);						// 将端口转成网络字节存入sin_port
-	
-	int recvbuf = atoi(argv[4]);						// 读取接收buffer的大小
-	int len = sizeof(recvbuf);
-	/*先设置TCP接收缓冲区的大小，然后读取输出*/
-	getsockopt(	sock, SOL_SOCKET, SO_RCVBUF, &recvbuf,	// 读取TCP接收缓存区
-				(socklen_t*)&len);	
-	printf(	"the tcp receive buffer size after setting is:%d\n",
-		recvbuf);		
-	setsockopt(	sock, SOL_SOCKET, SO_RCVBUF, &recvbuf,	// 设置TCP接收缓存区为recvbuf
-				sizeof(recvbuf));	 
-	getsockopt(	sock, SOL_SOCKET, SO_RCVBUF, &recvbuf,	// 读取TCP接收缓存区
-				(socklen_t*)&len);	
-	printf(	"the tcp receive buffer size after setting is:%d\n",
-			recvbuf);
 			
 	int ret = bind (sock, (struct sockaddr*)&address, 	// 绑定socket
 					sizeof(address));
@@ -74,20 +60,70 @@ int main(int argc, char *argv[])
 	{
 		printf("errno is:%d\n",errno);
 	}
-	else
+	
+	/*开始设置select*/
+	char buf[1024];
+	fd_set read_fds;									// 可读文件描述符集合
+	fd_set exception_fds;								// 异常文件描述符集合
+	FD_ZERO( &read_fds);								// 清空可读文件描述符集合
+	FD_ZERO( &exception_fds);							// 清空异常文件描述符集合
+	
+	while(1)
 	{
-		/*接收连接成功则打印客户端的IP地址和端口号*/	
-		char buffer[BUF_SIZE];										// 定义缓存区
 		
-		memset(buffer, '\0', BUF_SIZE);								// 清空缓存区			
-		while( recv( connfd, buffer, BUF_SIZE - 1, 0) > 0 ){};
+		memset( buf, '\0', sizeof( buf ));				// 清空缓存区
+		/*每次调用select前都要重新在read_fds，exception_fds
+		  中设置文件描述符connfd，因为事件发生后，文件描述
+		  集合将被内核修改*/
+		FD_SET( connfd, &read_fds );					// 将cnnfd位置1
+		FD_SET( connfd, &exception_fds );				// 将cnnfd位置1
 		
-		close(connfd);												// 关闭accep连接
+		ret = select( connfd + 1, &read_fds, NULL, &exception_fds, NULL);
+		if( ret < 0)
+		{
+			printf("selection failure\n");
+			break;
+		}
+		 /*对于可读事件，采取普通的recv函数读取数据*/
+		 if ( FD_ISSET( connfd, &read_fds ))			// connfd读取位置1
+		 {
+			 ret = recv(connfd, buf, sizeof(buf)-1, 0);
+			 if(ret <= 0)
+			 {
+				 break;
+			 }
+			 printf("get %d bytes of normal data: %s\n", ret, buf);
+	
+		 }
+		 else if(FD_ISSET( connfd, &exception_fds))		// connfd异常位置1
+		 {
+			 ret = recv(connfd, buf, sizeof(buf)-1, MSG_OOB);
+			 if(ret <= 0)
+			 {
+				 break;
+			 }
+			 printf("get %d bytes of normal data: %s\n", ret, buf);
+		 }
+		
 	}
-
-	close(sock);													// 关闭socket
-	return 0;	
+	
+	close(connfd);
+	close(sock);
+	return 0;
 }
+
+
+ 
+
+
+
+
+
+
+
+
+
+
 
 
 
