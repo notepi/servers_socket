@@ -1,0 +1,133 @@
+/***********************************
+*
+*readme
+*接收来自组播的数据，接收五次后退出
+*需要输入ip，端口，listen的连接数
+*功能：输出连接的ip和端口号
+*
+***********************************/
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+
+
+#define class_addr "224.25.25.25"
+#define MAX_READBUFF 100
+
+
+int Creat_IPV4_UDP_Socket( const char* ip, int port)
+{
+	
+	int sock = socket (AF_INET, SOCK_DGRAM, 0);			// 创建UDP的socket
+	// 如果其值为假（即为0），那么它先向stderr打印一条出错信息，然后通过调用 abort 来终止程序运行。
+	if ( sock < 0){
+		// 如果创建失败，打印错误原因并返回
+		printf("errno value: %d, it means: %s",errno, strerror(errno));
+		return -1;
+	}
+	
+	/*创建一个IPv4 socket地址*/
+	struct sockaddr_in address;
+	bzero(&address, sizeof(address));					// 结构体清零
+	address.sin_family = AF_INET;						// TCP/IPv4协议族
+	if (NULL == ip){									// 地址为空则监听所有
+		address.sin_addr.s_addr = htonl(INADDR_ANY);
+	}
+	else{												// 监听特定IP
+		inet_pton(AF_INET, ip, &address.sin_addr);		// 将ip转成网络字节序存入sin_addr
+	}
+	address.sin_port = htons(port);						// 将端口转成网络字节存入sin_port
+	
+	int ret = bind (sock, (struct sockaddr*)&address, 	// 绑定socket
+				sizeof(address));
+	if ( ret < 0){
+		// 绑定失败则退出，打印错误原因并返回
+		printf("errno value: %d, it means: %s",errno, strerror(errno));
+		return -1;
+	}
+	
+	return sock;
+	
+}
+int main(int argc, char *argv[])
+{
+	if (argc < 2)
+	{
+		printf("usge:%s ip_address port_number backlog\n",
+				basename(argv[0]));
+		return -1;
+	}
+	const char *ip = argv[1];				
+	int port = atoi(argv[2]);							// 将端口的ascii转成int
+	int i = 0, ret, on = 1; 
+	char buff[MAX_READBUFF];
+	struct sockaddr_in client;
+	socklen_t length = sizeof(client);
+	int sock = Creat_IPV4_UDP_Socket( NULL, port);		// 创建UDP套接字
+	if ( sock < 0){
+		// 如果创建失败，打印错误原因并返回
+		printf("errno value: %d, it means: %s",errno, strerror(errno));
+		return -1;
+	}
+	
+	/*创建一个IPv4 socket地址*/
+	struct sockaddr_in address;
+	struct ip_mreq ipmeq;
+	inet_pton(AF_INET, class_addr, &ipmeq.imr_multiaddr.s_addr);						// 将ip转成网络字节序存入sin_addr
+	ipmeq.imr_interface.s_addr = htonl(INADDR_ANY);
+	
+	ret = setsockopt( sock, IPPROTO_IP, IP_MULTICAST_LOOP, &on, sizeof(on));			// 设置回环
+	if ( ret <0){
+		// 如果发送失败，打印错误原因并返回
+		printf("errno value: %d, it means: %s\n",errno, strerror(errno));
+		return -1;
+	}
+	printf("errno value: %d, it means: %s\n",errno, strerror(errno));
+	
+	ret = setsockopt( sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &ipmeq, sizeof(ipmeq));		// 加入组播	
+	if ( ret <0){
+		// 如果发送失败，打印错误原因并返回
+		printf("errno value: %d, it means: %s\n",errno, strerror(errno));
+		return -1;
+	}
+	printf("errno value: %d, it means: %s\n",errno, strerror(errno));
+
+	
+	while(1)
+	{		
+		bzero(buff, MAX_READBUFF);
+		ret = recvfrom( sock, buff, MAX_READBUFF, 0, (struct sockaddr*)&client, &length);	 
+		// 如果创建失败，打印错误原因并返回
+		printf("errno value: %d, it means: %s\n",errno, strerror(errno));
+		printf("bytes is:%d buff:%s\n", ret, buff);
+		printf("IP:0x%x,Port:%d\n", ntohl(address.sin_addr.s_addr), ntohs(address.sin_port));						
+		sleep(2);	
+		if( ++i > 5) break;
+	}
+	ret = setsockopt( sock, IPPROTO_IP, IP_DROP_MEMBERSHIP, 
+						&ipmeq, sizeof(ipmeq));											// 设置离开组播	
+	return -1;
+	
+}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	

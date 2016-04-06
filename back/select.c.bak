@@ -1,13 +1,3 @@
-
-
-/***********************************
-*
-*readme
-*用于读取信息
-*需要输入ip，端口，listen的连接数
-*功能：测试select
-*
-***********************************/
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -18,9 +8,50 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/select.h>
+//#include "IPv4socket.h"
+
+int Creat_IPV4_TCP_Socket( const char* ip, int port, int backlog )
+{
+	int ret;
+	int sockfd = socket (AF_INET, SOCK_STREAM, 0);		// 创建TCP的socket
+	if( sockfd < 0)
+	{
+		// 如果创建失败，打印错误原因并返回
+		printf("errno value: %d, it means: %s",errno, strerror(errno));
+		return -1;
+	}
+	
+	/*创建一个IPv4 socket地址*/
+	struct sockaddr_in address;
+	bzero( &address, sizeof(address) );					// 结构体清零
+	address.sin_family = AF_INET;						// TCP/IPv4协议族
+	inet_pton(AF_INET, ip, &address.sin_addr);			// 将ip转成网络字节序存入sin_addr
+	address.sin_port = htons(port);						// 将端口转成网络字节存入sin_port
+	
+	ret = bind (sockfd, (struct sockaddr*)&address, 	// 绑定socket
+					sizeof(address));
+	if ( ret < 0)
+	{
+		// 如果绑定失败，打印错误原因并返回
+		printf("errno value: %d, it means: %s",errno, strerror(errno));
+		return -1;
+	}
+	
+	ret = listen(sockfd, backlog);						// 最多监听backlog个连接
+	if( ret < 0)
+	{
+		// 如果创建失败，打印错误原因并返回
+		printf("errno value: %d, it means: %s",errno, strerror(errno));
+		return -1;
+	}
+	
+	return sockfd;										// 返回监听
+}
 
 int main(int argc, char *argv[])
 {
+	int listenfd, ret;
 	
 	if (argc < 4)
 	{
@@ -28,93 +59,98 @@ int main(int argc, char *argv[])
 				basename(argv[0]));
 		return -1;
 	}
-	const char *ip = argv[1];							// 读取绑定ip				
-	int port = atoi(argv[2]);							// 将端口的ascii转成int
-	int backlog = atoi(argv[3]);						// 将监听链接数量的ascii转成int
+	const char *ip = argv[1];										// 读取绑定ip				
+	int port = atoi(argv[2]);										// 将端口的ascii转成int
+	int backlog = atoi(argv[3]);									// 将监听链接数量的ascii转成int
 	
-	
-	int sock = socket (AF_INET, SOCK_STREAM, 0);		// 创建TCP的socket
-	// 如果其值为假（即为0），那么它先向stderr打印一条出错信息，然后通过调用 abort 来终止程序运行。
-	assert( sock >= 0);
-	
-	/*创建一个IPv4 socket地址*/
-	struct sockaddr_in address;
-	bzero(&address, sizeof(address));					// 结构体清零
-	address.sin_family = AF_INET;						// TCP/IPv4协议族
-	inet_pton(AF_INET, ip, &address.sin_addr);			// 将ip转成网络字节序存入sin_addr
-	address.sin_port = htons(port);						// 将端口转成网络字节存入sin_port
-			
-	int ret = bind (sock, (struct sockaddr*)&address, 	// 绑定socket
-					sizeof(address));
-	assert (ret != -1);									// 绑定失败则退出
-	
-	ret = listen(sock, backlog);						// 最多监听backlog个连接
-	assert (ret != -1);									// 监听失败则退出
-	
-	
-	struct sockaddr_in client;							// client信息结构体
-	socklen_t client_addrlength = sizeof(client);		// socket地址长度
-	/*接收socket*/
-	int connfd = accept(sock, (struct sockaddr*)&client, &client_addrlength);
-	if(connfd < 0)
+	listenfd = Creat_IPV4_TCP_Socket( ip, 							// 创建监听套接字
+									  port, backlog);	
+	if ( listenfd < 0)
 	{
-		printf("errno is:%d\n",errno);
+		// 如果绑定失败，打印错误原因并返回
+		printf("errno value: %d, it means: %s",errno, strerror(errno));
+		return -1;
 	}
-	
-	/*开始设置select*/
-	char buf[1024];
-	fd_set read_fds;									// 可读文件描述符集合
-	fd_set exception_fds;								// 异常文件描述符集合
-	FD_ZERO( &read_fds);								// 清空可读文件描述符集合
-	FD_ZERO( &exception_fds);							// 清空异常文件描述符集合
-	
+	char ReadBuff[1024];
+	int client_fd[FD_SETSIZE];										// 存放连接
+	int i = 0;
+	memset( client_fd, -1, sizeof( client_fd ));					// 清空缓存区
+	fd_set read_fds,gloabl;											// 可读文件描述符集合
+	FD_ZERO( &gloabl);												// 清空可读文件描述符集合
+	FD_SET ( listenfd, &gloabl );									// 将cnnfd位置1
+	int Maxfd = listenfd;											// 监听描述符中的最大值
+	struct sockaddr_in client;										// client信息结构体
+	socklen_t client_addrlength = sizeof(client);					// socket地址长度
 	while(1)
 	{
 		
-		memset( buf, '\0', sizeof( buf ));				// 清空缓存区
+		memset( ReadBuff, '\0', sizeof( ReadBuff ));				// 清空缓存区
 		/*每次调用select前都要重新在read_fds，exception_fds
 		  中设置文件描述符connfd，因为事件发生后，文件描述
 		  集合将被内核修改*/
-		FD_SET( connfd, &read_fds );					// 将cnnfd位置1
-		FD_SET( connfd, &exception_fds );				// 将cnnfd位置1
-		
-		ret = select( connfd + 1, &read_fds, NULL, &exception_fds, NULL);
+		read_fds = gloabl;
+		ret = select( Maxfd + 1, &read_fds, NULL, NULL, NULL);
+		printf("errno value: %d, it means: %s\n",errno, strerror(errno));
 		if( ret < 0)
 		{
 			printf("selection failure\n");
 			break;
 		}
-		 /*对于可读事件，采取普通的recv函数读取数据*/
-		 if ( FD_ISSET( connfd, &read_fds ))			// connfd读取位置1
-		 {
-			 ret = recv(connfd, buf, sizeof(buf)-1, 0);
-			 if(ret <= 0)
-			 {
-				 break;
-			 }
-			 printf("get %d bytes of normal data: %s\n", ret, buf);
-	
-		 }
-		 else if(FD_ISSET( connfd, &exception_fds))		// connfd异常位置1
-		 {
-			 ret = recv(connfd, buf, sizeof(buf)-1, MSG_OOB);
-			 if(ret <= 0)
-			 {
-				 break;
-			 }
-			 printf("get %d bytes of normal data: %s\n", ret, buf);
-		 }
+		if ( FD_ISSET( listenfd, &read_fds ))						// 有新的链接
+		{
+			/*接收socket*/
+			int connfd ;
+			if( (connfd = accept( listenfd, (struct sockaddr*)&client, 
+								&client_addrlength) ) < 0 )
+			{
+				printf("errno value: %d, it means: %s\n",errno, strerror(errno));
+				return -1;
+			}
+//			FD_CLR( i, &read_fds);
+			FD_SET ( connfd, &gloabl );								// 将cnnfd位置1
+			Maxfd = connfd > Maxfd ? connfd:Maxfd;					// 取最大值的描述符
+			for (i = 0; i < Maxfd; i++)
+			{
+				if ( -1 == client_fd[i])
+				{
+					client_fd[i] = connfd;
+					break;
+				}
+			}
+			
+		}
+		
+		for ( i = 0; i <= Maxfd; i++)
+		{
+			if( -1 == client_fd[i])
+			{
+				continue;
+			}
+			/*对于可读事件，采取普通的recv函数读取数据*/
+			if ( FD_ISSET( client_fd[i], &read_fds ))				// connfd读取位置1
+			{
+				ret = recv( client_fd[i], ReadBuff, sizeof(ReadBuff)-1, 0);
+				if( ret <  0)
+				{
+					printf("errno value: %d, it means: %s\n",errno, strerror(errno));
+					return -1;
+				}
+				else if ( 0 == ret)
+				{
+					FD_CLR( client_fd[i], &gloabl);
+					close(client_fd[i]);
+					continue;
+				}
+				FD_SET ( client_fd[i], &gloabl );					// 将cnnfd位置1
+				printf("get %d bytes of normal data: %s\n", ret, ReadBuff);
+			}
+		}
 		
 	}
+	close(listenfd);
 	
-	close(connfd);
-	close(sock);
-	return 0;
 }
-
-
- 
-
+				
 
 
 
@@ -130,3 +166,14 @@ int main(int argc, char *argv[])
 
 
 
+
+
+
+
+
+
+
+
+
+				
+					

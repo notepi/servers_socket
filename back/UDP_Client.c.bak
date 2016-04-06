@@ -1,0 +1,77 @@
+/***********************************
+*
+*readme
+*使用udp发送信息
+*需要输入ip，端口，listen的连接数
+*功能：输出连接的ip和端口号
+*
+***********************************/
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+
+int main(int argc, char *argv[])
+{
+	if (argc < 2)
+	{
+		printf("usge:%s ip_address port_number backlog\n",
+				basename(argv[0]));
+		return -1;
+	}
+	const char *ip = argv[1];				
+	int port = atoi(argv[2]);							// 将端口的ascii转成int
+
+	int sock = socket (AF_INET, SOCK_DGRAM, 0);			// 创建UDP的socket
+	// 如果其值为假（即为0），那么它先向stderr打印一条出错信息，然后通过调用 abort 来终止程序运行。
+	if ( sock < 0)
+	{
+		// 如果创建失败，打印错误原因并返回
+		printf("errno value: %d, it means: %s",errno, strerror(errno));
+		return -1;
+	}
+	
+	/*创建一个IPv4 socket地址*/
+	struct sockaddr_in address;
+	bzero(&address, sizeof(address));					// 结构体清零
+	address.sin_family = AF_INET;						// TCP/IPv4协议族
+	inet_pton(AF_INET, ip, &address.sin_addr);			// 将ip转成网络字节序存入sin_addr
+	address.sin_port = htons(port);						// 将端口转成网络字节存入sin_port
+	
+	char buf[100] = "hello world!";
+	socklen_t length = sizeof(const struct sockaddr);
+	printf("size is:%d\n", length);
+	while(1)
+	{
+		int ret = sendto( sock, buf, sizeof(buf), 0, 
+							( const struct sockaddr*)&address, length);
+		// 如果创建失败，打印错误原因并返回
+		printf("errno value: %d, it means: %s\n",errno, strerror(errno));
+		printf("IP:0x%x,Port:%d\n", ntohl(address.sin_addr.s_addr), ntohs(address.sin_port));	
+		printf("Sockfd:%d\n", sock);					
+		printf("send:%d\n",ret);
+		printf("send:%s\n",buf);
+		sleep(2);	
+	}
+}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
