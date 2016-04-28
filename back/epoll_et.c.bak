@@ -7,9 +7,6 @@
 *
 ***********************************/
 
-
-
-
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -67,7 +64,8 @@ int addfd(int epollfd, int fd, int enable_et)
 	}  
 	SetNonblocking(fd);										// 将事件配置成非阻塞模式
 }
-  
+
+/*建议使用IPv4socket.c中最新版函数*/  
 int Creat_IPV4_TCP_Socket( const char* ip, int port, int backlog )
 {
 	int ret;
@@ -108,7 +106,9 @@ int Creat_IPV4_TCP_Socket( const char* ip, int port, int backlog )
 
 int main(int argc, char *argv[])
 {
+
 	int sockfd, connfd, ret, epfd;
+	int number;
 	if (argc < 3){
 		printf("usge:%s ip_address port_number backlog\n",
 				basename(argv[0]));
@@ -117,7 +117,6 @@ int main(int argc, char *argv[])
 	const char *ip = argv[1];				
 	int port = atoi(argv[2]);								// 将端口的ascii转成int
 	int backlog = atoi(argv[3]);							// 将监听链接数量的ascii转成int
-	struct epoll_event event;
 	struct epoll_event events[MAX_EVENTS];
 	char ReadBuff[MAX_READBUFF];
 	int i;
@@ -130,49 +129,51 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 	
-	epfd = epoll_create(EPOLL_SIZE);
+	epfd = epoll_create(EPOLL_SIZE);						// 创建epoll
 	if( epfd < 0){
 		printf("errno value: %d, it means: %s\n",errno, strerror(errno));
 		return -1;
 	}
-	
 	addfd( epfd, sockfd, 1);								// 注册ET模式的Epoll事件
 	while(1)
 	{
-		ret = epoll_wait( epfd, events, MAX_EVENTS, -1);	// 等待事件发生
-		if ( ret < 0){
+		number = epoll_wait( epfd, events, MAX_EVENTS, -1);	// 等待事件发生
+		if ( number < 0){
 			printf("errno value: %d, it means: %s",errno, strerror(errno));
 			return -1;
 		}
-		for (i = 0; i < ret; i++ )
+		for (i = 0; i < number; i++ )
 		{
 			int listenfd = events[i].data.fd;
 			if( listenfd == sockfd){						// 来新的链接了
+				printf("new client!\n");
 				connfd = accept(sockfd, (struct sockaddr*)&client,
 								&client_addrlength);
-				addfd( epfd, connfd, 1);					// 注册ET模式的Epoll事件
+				addfd( epfd, connfd, 1);					// 注册LT模式的Epoll事件
 			}
 			else if( events[i].events & EPOLLIN){			// 有数据可读
 				while(1)
 				{
 					bzero(ReadBuff, MAX_READBUFF);
+					// 接受数据
 					ret = recv( events[i].data.fd, ReadBuff, MAX_READBUFF - 1, 0);
-					if ( ret < 0){
-						// 数据接收完毕
+					if ( ret < 0){						
+						// 数据全部接收完毕
 						if( (errno == EAGAIN) || (errno == EWOULDBLOCK)){
 							break;
 						}
 					}
-					else if(0 == ret){
+					else if(0 == ret){						// 连接退出
 						printf("client leave!\n");
-						close(events[i].data.fd);
+						close(listenfd);					// 关闭连接
+						break;								// 跳出循环
 					}
-					else{
+					else{									// 本次数据接受完成									
 						printf("receive %d bytes:%s\n", ret,ReadBuff);
 					}
 				}	
 			}
-			else{
+			else{											// 事件发生且非数据可读
 				printf("someting happen!\n");
 			}
 		}

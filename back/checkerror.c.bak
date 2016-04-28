@@ -6,4 +6,5 @@
 ***********************************/
 
 #include <errno.h>
-printf("errno value: %d, it means: %s\n",errno, strerror(errno));
+printf("errno value: %d, it means: %s\n",
+		errno, strerror(errno));
