@@ -102,6 +102,7 @@ int SetNonblocking(int fd)
 	int new_option = old_option | O_NONBLOCK;				// fd设置为非阻塞模式
 	ret = fcntl( fd, F_SETFL, new_option);					// fd设置为非阻塞模式 
 	if ( ret < 0){
+		printf("failed to call fcntl!\n");
 		// 如果设置失败，打印错误原因并返回
 		printf("errno value: %d, it means: %s",errno, strerror(errno));
 		return -1;
