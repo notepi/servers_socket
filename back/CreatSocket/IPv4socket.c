@@ -16,7 +16,7 @@ int Creat_IPV4_TCP_Socket( const char* ip, int port, int backlog )
 		return -1;
 	}
 	
-	/*创建一个IPv4 socket地址*/
+	// 创建一个IPv4 socket地址
 	struct sockaddr_in address;
 	bzero( &address, sizeof(address) );					// 结构体清零
 	address.sin_family = AF_INET;						// TCP/IPv4协议族
@@ -66,7 +66,7 @@ int Creat_IPV4_UDP_Socket( const char* ip, int port)
 		return -1;
 	}
 	
-	/*创建一个IPv4 socket地址*/
+	// 创建一个IPv4 socket地址
 	struct sockaddr_in address;
 	bzero(&address, sizeof(address));					// 结构体清零
 	address.sin_family = AF_INET;						// TCP/IPv4协议族
