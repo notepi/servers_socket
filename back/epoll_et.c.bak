@@ -47,7 +47,7 @@ int SetNonblocking(int fd)
 
 /*将文件描述符fd的EPOLLEN注册到epollfd指示的epoll内核事件中，
   参数enable_et指定是否fd启动ET模式*/
-int addfd(int epollfd, int fd, int enable_et)
+int Epoll_addfd(int epollfd, int fd, int enable_et)
 {
 	struct epoll_event event;
 	int ret;
@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 		printf("errno value: %d, it means: %s\n",errno, strerror(errno));
 		return -1;
 	}
-	addfd( epfd, sockfd, 1);								// 注册ET模式的Epoll事件
+	Epoll_addfd( epfd, sockfd, 1);								// 注册ET模式的Epoll事件
 	while(1)
 	{
 		number = epoll_wait( epfd, events, MAX_EVENTS, -1);	// 等待事件发生
@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
 				printf("new client!\n");
 				connfd = accept(sockfd, (struct sockaddr*)&client,
 								&client_addrlength);
-				addfd( epfd, connfd, 1);					// 注册LT模式的Epoll事件
+				Epoll_addfd( epfd, connfd, 1);					// 注册LT模式的Epoll事件
 			}
 			else if( events[i].events & EPOLLIN){			// 有数据可读
 				while(1)

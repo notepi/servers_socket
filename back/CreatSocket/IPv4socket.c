@@ -10,6 +10,7 @@ int Creat_IPV4_TCP_Socket( const char* ip, int port, int backlog )
 	int ret;
 	int sockfd = socket (AF_INET, SOCK_STREAM, 0);		// 创建TCP的socket
 	if( sockfd < 0){
+		printf("failed to call socket!\n");
 		// 如果创建失败，打印错误原因并返回
 		printf("errno value: %d, it means: %s",errno, strerror(errno));
 		return -1;
@@ -30,6 +31,7 @@ int Creat_IPV4_TCP_Socket( const char* ip, int port, int backlog )
 	ret = bind (sockfd, (struct sockaddr*)&address, 	// 绑定socket
 					sizeof(address));
 	if ( ret < 0){
+		printf("failed to call bind!\n");
 		// 如果绑定失败，打印错误原因并返回
 		printf("errno value: %d, it means: %s",errno, strerror(errno));
 		return -1;
@@ -37,6 +39,7 @@ int Creat_IPV4_TCP_Socket( const char* ip, int port, int backlog )
 	
 	ret = listen(sockfd, backlog);						// 最多监听backlog个连接
 	if( ret < 0){
+		printf("failed to call listen!\n");
 		// 如果创建失败，打印错误原因并返回
 		printf("errno value: %d, it means: %s",errno, strerror(errno));
 		return -1;
@@ -56,8 +59,8 @@ int Creat_IPV4_UDP_Socket( const char* ip, int port)
 {
 	
 	int sock = socket (AF_INET, SOCK_DGRAM, 0);			// 创建UDP的socket
-	// 如果其值为假（即为0），那么它先向stderr打印一条出错信息，然后通过调用 abort 来终止程序运行。
 	if ( sock < 0){
+		printf("failed to call socket!\n");
 		// 如果创建失败，打印错误原因并返回
 		printf("errno value: %d, it means: %s",errno, strerror(errno));
 		return -1;

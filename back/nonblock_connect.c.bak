@@ -1,9 +1,9 @@
 /*************************************************
 *
 *readme
-*用于测试非阻塞connect
+*用于测试客户端非阻塞connect
 *需要输入ip，端口
-*功能：测试非阻塞connection,超过10ms后提示连接超时
+*功能：测试使用select非阻塞connection,超过10ms后提示连接超时
 *
 **************************************************/
 
@@ -50,14 +50,12 @@ int unblock_connect(const char* ip, int port, int time)
 	
 	ret = connect(sockfd, (struct sockaddr*)&address,
 						sizeof(address) );
-	if(0 == ret)											// 连接成功
-	{
+	if(0 == ret){											// 连接成功
 		printf("connect with server immediately\n");
 		fcntl( sockfd, F_SETFL, fdopt);						// fd设置为原始状态
 		return sockfd;
 	}
-	else if( errno != EINPROGRESS)
-	{
+	else if( errno != EINPROGRESS){
 		/* 如果连接没有立即建立，那么只有当errno是EINPROGRESS时才表示连接
 		   还在进行，否则返回出错*/
 		printf("unbolck connect not support\n");
@@ -74,8 +72,7 @@ int unblock_connect(const char* ip, int port, int time)
 	timeout.tv_usec  = 0;
 	
 	ret = select( sockfd + 1, NULL, &writefds, NULL, &timeout);
-	if( ret <= 0)
-	{
+	if( ret <= 0){
 		/*select 超时或者出错，立即返回*/
 		printf("connection time out\n");
 		close(sockfd);
@@ -83,8 +80,7 @@ int unblock_connect(const char* ip, int port, int time)
 	}
 	
 
-	if ( ! FD_ISSET( sockfd, &writefds ))					// writefds读取位置1
-	{
+	if ( ! FD_ISSET( sockfd, &writefds )){					// writefds读取位置1
 		printf("no event on sockfd found\n");
 		close(sockfd);
 		return -1;
@@ -94,16 +90,14 @@ int unblock_connect(const char* ip, int port, int time)
 	int error = 0;
 	socklen_t length = sizeof(error);
 	/*获取并清除sockfd上的错误*/
-	if ( getsockopt( sockfd, SOL_SOCKET, SO_ERROR, &error, &length) < 0)
-	{
+	if ( getsockopt( sockfd, SOL_SOCKET, SO_ERROR, &error, &length) < 0){
 		printf("get socket option failed\n");
 		close(sockfd);
 		return -1;
 	}
 	
 	/* 错误号不为0表示连接出错*/
-	if( error != 0)
-	{
+	if( error != 0){
 		printf("connection failed after select with the error:%d\n", error);
 		close(sockfd);
 		return -1;
@@ -119,8 +113,7 @@ int unblock_connect(const char* ip, int port, int time)
 
 int main( int argc, char* argv[])
 {
-	if (argc < 3)
-	{
+	if (argc < 3){
 		printf("usge:%s ip_address port_number backlog\n",
 				basename(argv[0]));
 		return -1;
@@ -129,8 +122,7 @@ int main( int argc, char* argv[])
 	int port = atoi(argv[2]);								// 将端口的ascii转成int
 	
 	int sockfd = unblock_connect(ip, port, 10);				// 非阻塞连接socket
-	if ( sockfd < 0)
-	{
+	if ( sockfd < 0){
 		return 1;
 	}
     shutdown( sockfd, SHUT_WR );
