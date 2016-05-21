@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
 		send(sockfd, normal_data, strlen(normal_data), 0);
 	}
 	
-	close(sockfd);										// ¹Ø±Õsocket
+	close(sockfd);												// ¹Ø±Õsocket
 	return 0;	
 }
 
