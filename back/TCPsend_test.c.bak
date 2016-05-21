@@ -27,17 +27,17 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 	const char *ip = argv[1];				
-	int port = atoi(argv[2]);							// 将端口的ascii转成int
+	int port = atoi(argv[2]);									// 将端口的ascii转成int
 	
-	int sockfd = socket (AF_INET, SOCK_STREAM, 0);		// 创建TCP的socket
+	int sockfd = socket (AF_INET, SOCK_STREAM, 0);				// 创建TCP的socket
 	// 如果其值为假（即为0），那么它先向stderr打印一条出错信息，然后通过调用 abort 来终止程序运行。
 	assert( sockfd >= 0);
 	
 	/*创建一个IPv4 socket地址*/
 	struct sockaddr_in server_address;
-	bzero(&server_address, sizeof(server_address));					// 结构体清零
-	server_address.sin_family = AF_INET;				// TCP/IPv4协议族
-	inet_pton(AF_INET, ip, &server_address.sin_addr);	// 将ip转成网络字节序存入sin_addr
+	bzero(&server_address, sizeof(server_address));				// 结构体清零
+	server_address.sin_family = AF_INET;						// TCP/IPv4协议族
+	inet_pton(AF_INET, ip, &server_address.sin_addr);			// 将ip转成网络字节序存入sin_addr
 	server_address.sin_port = htons(port);						// 将端口转成网络字节存入sin_port
 	
 	if (connect(sockfd, (struct sockaddr*)&server_address,
